@@ -39,8 +39,7 @@ public class EmpresaEntity {
     private String usuaDelet;
     @Column(name = "date_delet")
     private Timestamp dateDelet;
-    @ManyToOne
-    @JoinColumn(name = "tipo_documento_id")
-    private TipoDocumentoEntity tipoDocumentoId;
-
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "tipo_documento_id",nullable = false)
+    private TipoDocumentoEntity tipoDocumento;
 }

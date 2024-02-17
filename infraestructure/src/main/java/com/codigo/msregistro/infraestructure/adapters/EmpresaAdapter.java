@@ -39,7 +39,7 @@ public class EmpresaAdapter implements EmpresaServiceOut {
     @Override
     public EmpresaDTO crearEmpresaOut(RequestEmpresa requestEmpresa) {
 
-        ResponseSunat datosSunat = getExecutionSunat(requestEmpresa.getRuc());
+        ResponseSunat datosSunat = getExecutionSunat(requestEmpresa.getNumRuc());
         empresaRepository.save(getEntity(datosSunat,requestEmpresa));
         return empresaMapper.mapToDto(getEntity(datosSunat,requestEmpresa));
     }
@@ -96,13 +96,13 @@ public class EmpresaAdapter implements EmpresaServiceOut {
     private EmpresaEntity getEntity(ResponseSunat sunat, RequestEmpresa requestEmpresa){
         TipoDocumentoEntity tipoDocumento = tipoDocumentoRepository.findByCodTipo(requestEmpresa.getTipoDoc());
         EmpresaEntity entity = new EmpresaEntity();
-        entity.setTipoDocumentoId(tipoDocumento);
         entity.setRazonSocial(sunat.getRazonSocial());
         entity.setNomComercial(sunat.getRazonSocial());
         entity.setEstado(Constants.STATUS_ACTIVE);
         entity.setUsuaCrea(Constants.AUDIT_ADMIN);
         entity.setDateCreate(getTimestamp());
         entity.setNumDocu(sunat.getNumeroDocumento());
+        entity.setTipoDocumento(tipoDocumento);
         return entity;
     }
     private EmpresaEntity getEntityUpdate(ResponseSunat responseSunat,EmpresaEntity empresaActualizar)

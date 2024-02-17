@@ -8,5 +8,5 @@ import lombok.Setter;
 @Setter
 public class RequestEmpresa {
     private String tipoDoc;
-    private String ruc;
+    private String numRuc;
 }
