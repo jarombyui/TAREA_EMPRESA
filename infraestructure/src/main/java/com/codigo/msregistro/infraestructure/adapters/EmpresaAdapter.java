@@ -1,0 +1,129 @@
+package com.codigo.msregistro.infraestructure.adapters;
+
+import com.codigo.msregistro.domain.aggregates.constants.Constants;
+import com.codigo.msregistro.domain.aggregates.dto.EmpresaDTO;
+import com.codigo.msregistro.domain.aggregates.dto.PersonaDTO;
+import com.codigo.msregistro.domain.aggregates.request.RequestEmpresa;
+import com.codigo.msregistro.domain.aggregates.request.RequestPersona;
+import com.codigo.msregistro.domain.aggregates.response.ResponseReniec;
+import com.codigo.msregistro.domain.aggregates.response.ResponseSunat;
+import com.codigo.msregistro.domain.ports.out.EmpresaServiceOut;
+import com.codigo.msregistro.infraestructure.entity.EmpresaEntity;
+import com.codigo.msregistro.infraestructure.entity.PersonaEntity;
+import com.codigo.msregistro.infraestructure.entity.TipoDocumentoEntity;
+import com.codigo.msregistro.infraestructure.mapper.EmpresaMapper;
+import com.codigo.msregistro.infraestructure.repository.EmpresaRepository;
+import com.codigo.msregistro.infraestructure.repository.TipoDocumentoRepository;
+import com.codigo.msregistro.infraestructure.rest.client.ClienteSunat;
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+
+import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+
+@Service
+@RequiredArgsConstructor
+
+public class EmpresaAdapter implements EmpresaServiceOut {
+    private final EmpresaRepository empresaRepository;
+    private final EmpresaMapper empresaMapper;
+    private final TipoDocumentoRepository tipoDocumentoRepository;
+    private final ClienteSunat clienteSunat;
+
+    @Value("${token.api}")
+    private String tokenApi;
+
+    @Override
+    public EmpresaDTO crearEmpresaOut(RequestEmpresa requestEmpresa) {
+
+        ResponseSunat datosSunat = getExecutionSunat(requestEmpresa.getRuc());
+        empresaRepository.save(getEntity(datosSunat,requestEmpresa));
+        return empresaMapper.mapToDto(getEntity(datosSunat,requestEmpresa));
+    }
+
+    @Override
+    public Optional<EmpresaDTO> obtenerEmpresaOut(Long id) {
+        return Optional.ofNullable(empresaMapper.mapToDto(empresaRepository.findById(id).get()));
+    }
+
+    @Override
+    public List<EmpresaDTO> obtenerTodosOut() {
+        List<EmpresaDTO> empresaDTOList = new ArrayList<>();
+        List<EmpresaEntity> entities = empresaRepository.findAll();
+        for(EmpresaEntity empresa : entities){
+            EmpresaDTO empresaDTO = empresaMapper.mapToDto(empresa);
+            empresaDTOList.add(empresaDTO);
+        }
+        return empresaDTOList;
+    }
+
+    @Override
+    public EmpresaDTO actualizarOut(Long id, RequestEmpresa requestEmpresa) {
+            boolean existe = empresaRepository.existsById(id);
+            if(existe) {
+                Optional<EmpresaEntity> entity = empresaRepository.findById(id);
+                ResponseSunat responseSunat = getExecutionSunat(requestEmpresa.getTipoDoc());
+                empresaRepository.save(getEntityUpdate(responseSunat, entity.get()));
+                return empresaMapper.mapToDto(getEntityUpdate(responseSunat, entity.get()));
+            }
+        return null;
+    }
+
+    @Override
+    public EmpresaDTO deleteOut(Long id) {
+        boolean existe = empresaRepository.existsById(id);
+        if(existe){
+            Optional<EmpresaEntity> entity = empresaRepository.findById(id);
+            entity.get().setEstado(0);
+            entity.get().setUsuaDelet(Constants.AUDIT_ADMIN);
+            entity.get().setDateDelet(getTimestamp());
+            empresaRepository.save(entity.get());
+            return empresaMapper.mapToDto(entity.get());
+        }
+        return null;
+    }
+
+    /// metodos de apoyo
+
+        public ResponseSunat getExecutionSunat(String numero){
+        String authorization = "Bearer "+tokenApi;
+        ResponseSunat responseSunat = clienteSunat.getInfoSunat(numero,authorization);
+        return  responseSunat;
+    }
+    private EmpresaEntity getEntity(ResponseSunat sunat, RequestEmpresa requestEmpresa){
+        TipoDocumentoEntity tipoDocumento = tipoDocumentoRepository.findByCodTipo(requestEmpresa.getTipoDoc());
+        EmpresaEntity entity = new EmpresaEntity();
+        entity.setTipoDocumentoId(tipoDocumento);
+        entity.setRazonSocial(sunat.getRazonSocial());
+        entity.setNomComercial(sunat.getRazonSocial());
+        entity.setEstado(Constants.STATUS_ACTIVE);
+        entity.setUsuaCrea(Constants.AUDIT_ADMIN);
+        entity.setDateCreate(getTimestamp());
+        entity.setNumDocu(sunat.getNumeroDocumento());
+        return entity;
+    }
+    private EmpresaEntity getEntityUpdate(ResponseSunat responseSunat,EmpresaEntity empresaActualizar)
+    {
+        empresaActualizar.setRazonSocial(responseSunat.getRazonSocial());
+        empresaActualizar.setNomComercial(responseSunat.getRazonSocial());
+        empresaActualizar.setUsuaModif(Constants.AUDIT_ADMIN);
+        empresaActualizar.setDateModif(getTimestamp());
+        return empresaActualizar;
+    }
+    private Timestamp getTimestamp(){
+        long currentTime = System.currentTimeMillis();
+        Timestamp timestamp = new Timestamp(currentTime);
+        return timestamp;
+    }
+
+
+
+
+
+
+
+
+}
